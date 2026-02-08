@@ -1,134 +1,138 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<title>Interactive Celestial Sphere</title>
+<title>3D 自由互動天球</title>
 <style>
-    body{
-        background:#000;
-        color:white;
-        font-family:sans-serif;
-        text-align:center;
-    }
-    canvas{
-        background:black;
-        border:1px solid white;
-    }
-    .controls{
-        margin-top:10px;
-    }
+  body { margin:0; overflow:hidden; background:black; font-family:sans-serif; }
+  #gui { position:absolute; top:10px; left:10px; color:white; z-index:10; }
+  label { margin-right:5px; }
 </style>
 </head>
 <body>
-
-<h2>Interactive Celestial Sphere</h2>
-<canvas id="sky" width="600" height="600"></canvas>
-
-<div class="controls">
-Latitude:
-<input type="range" id="lat" min="-90" max="90" value="25" step="1">
-<span id="latVal">25</span>°
-
-<br>
-
-Time:
-<input type="range" id="time" min="0" max="24" value="0" step="0.1">
-<span id="timeVal">0</span> h
-<br>
-Arrow control ↑↓←→ to rotate
+<div id="gui">
+  緯度: <input type="range" id="lat" min="-80" max="80" value="25"> <span id="latVal">25</span>°<br>
+  時間: <input type="range" id="time" min="0" max="24" value="0" step="0.1"> <span id="timeVal">0</span> h
 </div>
 
-<script>
-const canvas = document.getElementById("sky");
-const ctx = canvas.getContext("2d");
-const center = 300;
-const radius = 250;
+<script src="https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.159.0/examples/js/controls/OrbitControls.js"></script>
 
-//星星資料 RA(deg), Dec(deg)
+<script>
+// ===== 星表資料 =====
 const stars = [
-["天狼星",101.2871554,-16.71611583,"lightblue"],
-["參宿四",88.79293875,7.407062778,"orange"],
-["參宿七",78.63458333,-8.20166667,"blue"],
-["織女一",279.2345833,38.78361111,"white"],
-["北極星",37.95291667,89.26416667,"yellow"],
-["河鼓二",297.6958292,8.868321944,"white"],
-["畢宿五",68.98016279,16.50930236,"red"],
-["心宿二",247.35,-26.43194444,"red"],
-["角宿一",201.3982471,-11.16132194,"lightblue"],
-["天津四",310.3579167,45.28027778,"white"]
+  {name:"天狼星", ra:101.2871554, dec-16.71611583, color:0xadd8e6},
+  {name:"參宿四", ra:,88.79293875, dec:7.407062778, color:0xffa500},
+  {name:"參宿七", ra:78.63458333, dec:-8.201666672, color:0x87ceeb},
+  {name:"織女一", ra:279.23458335, dec:38.78361111, color:0xffffff},
+  {name:"北極星", ra:37.95291667, dec:89.26416667, color:0xffff00},
+  {name:"河鼓二", ra:297.6958292, dec:8.868321944, color:0xffffff},
+  {name:"畢宿五", ra:68.98016279, dec:16.50930236, color:0xff4500},
+  {name:"心宿二", ra:247.35, dec:-26.43194444, color:0xff0000},
+  {name:"角宿一", ra:201.3982471, dec:-11.16132194, color:0xadd8e6},
+  {name:"天津四", ra:310.3579167, dec:45.28027778, color:0xffffff}
 ];
 
-function deg2rad(d){return d*Math.PI/180;}
+// ===== Three.js 基本設定 =====
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 1, 2000);
+camera.position.set(0,0,500);
 
-let viewOffset = 0; 
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
 
-function radecToAltAz(ra,dec,lat,time){
-    ra=deg2rad(ra); dec=deg2rad(dec); lat=deg2rad(lat);
-    let H = deg2rad(time*15) - ra;
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enablePan = false;
+controls.minDistance = 100;
+controls.maxDistance = 1000;
 
-    let sinAlt = Math.sin(lat)*Math.sin(dec) +
-                 Math.cos(lat)*Math.cos(dec)*Math.cos(H);
-    let alt = Math.asin(sinAlt);
+// ===== 星星物件 =====
+const starGroup = new THREE.Group();
+scene.add(starGroup);
+const radius = 400; // 天球半徑
 
-    let cosAz = (Math.sin(dec)-Math.sin(alt)*Math.sin(lat)) /
-                (Math.cos(alt)*Math.cos(lat));
-    let az = Math.acos(cosAz);
+stars.forEach(s=>{
+  const geometry = new THREE.SphereGeometry(4,8,8);
+  const material = new THREE.MeshBasicMaterial({color:s.color});
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.userData = {ra:s.ra, dec:s.dec, name:s.name};
+  starGroup.add(mesh);
+});
 
+// ===== 中文標籤 =====
+const labels = [];
+const loader = new THREE.FontLoader();
+loader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', function(font){
+  starGroup.children.forEach(star=>{
+    const textGeo = new THREE.TextGeometry(star.userData.name,{font:font,size:8,height:0.1});
+    const textMat = new THREE.MeshBasicMaterial({color:0xffffff});
+    const textMesh = new THREE.Mesh(textGeo,textMat);
+    scene.add(textMesh);
+    labels.push({mesh:textMesh, star:star});
+  });
+});
+
+// ===== 天球座標轉換函數 =====
+function updateStars(lat, time){
+  const rad = Math.PI/180;
+  const latRad = lat*rad;
+  const H0 = time*15*rad; // 基本時角
+  starGroup.children.forEach(star=>{
+    const ra = star.userData.ra * rad;
+    const dec = star.userData.dec * rad;
+    // 計算地平座標 (模擬東升西落)
+    let H = H0 - ra;
+    let alt = Math.asin(Math.sin(latRad)*Math.sin(dec) + Math.cos(latRad)*Math.cos(dec)*Math.cos(H));
+    let az = Math.acos((Math.sin(dec)-Math.sin(alt)*Math.sin(latRad))/(Math.cos(alt)*Math.cos(latRad)));
     if(Math.sin(H)>0) az = 2*Math.PI - az;
-    return [alt*180/Math.PI, az*180/Math.PI];
+
+    // 轉成天球球面座標 (3D)
+    const r = radius;
+    const x = r * Math.cos(alt) * Math.sin(az);
+    const y = r * Math.sin(alt);
+    const z = r * Math.cos(alt) * Math.cos(az);
+    star.position.set(x,y,z);
+  });
+
+  // 標籤跟隨星星
+  labels.forEach(l=>{
+    l.mesh.position.copy(l.star.position.clone().add(new THREE.Vector3(5,5,0)));
+  });
 }
 
-function drawSky(lat,time){
-    ctx.clearRect(0,0,600,600);
-
-    //地平線
-    ctx.beginPath();
-    ctx.arc(center,center,radius,0,Math.PI*2);
-    ctx.strokeStyle="white";
-    ctx.stroke();
-
-    stars.forEach(star=>{
-        let altaz = radecToAltAz(star[1],star[2],lat,time);
-        let alt = altaz[0];
-        let az = altaz[1];
-
-        if(alt>0){
-            let r = radius*(90-alt)/90;
-            let x = center + r*Math.sin(deg2rad(az));
-            let y = center - r*Math.cos(deg2rad(az));
-
-            ctx.beginPath();
-            ctx.arc(x,y,4,0,Math.PI*2);
-            ctx.fillStyle=star[3];
-            ctx.fill();
-
-            ctx.fillText(star[0],x+5,y);
-        }
-    });
-}
-
-//滑桿控制
-const latSlider=document.getElementById("lat");
-const timeSlider=document.getElementById("time");
+// ===== GUI 控制 =====
+const latSlider = document.getElementById("lat");
+const timeSlider = document.getElementById("time");
+const latVal = document.getElementById("latVal");
+const timeVal = document.getElementById("timeVal");
 
 function update(){
-    document.getElementById("latVal").innerText=latSlider.value;
-    document.getElementById("timeVal").innerText=timeSlider.value;
-    drawSky(parseFloat(latSlider.value),parseFloat(timeSlider.value));
+  const lat = parseFloat(latSlider.value);
+  const time = parseFloat(timeSlider.value);
+  latVal.innerText = lat;
+  timeVal.innerText = time;
+  updateStars(lat,time);
 }
-
-latSlider.oninput=update;
-timeSlider.oninput=update;
+latSlider.oninput = update;
+timeSlider.oninput = update;
 
 update();
 
-window.addEventListener("keydown",(e)=>{
-    if(e.key=="ArrowLeft")viewOffset-=0.1;
-    if(e.key=="ArrowRidht")viewOffset-=0.1;
-    update();
+// ===== 繪製 =====
+function animate(){
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+// ===== 視窗大小調整 =====
+window.addEventListener('resize', ()=>{
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
 });
-
 </script>
-
 </body>
 </html>
