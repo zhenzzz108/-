@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <title>3D 自由互動天球</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@r128/examples/js/controls/OrbitControls.js"></script>
 <style>
   body { margin:0; overflow:hidden; background:black; font-family:sans-serif; }
   #gui { position:absolute; top:10px; left:10px; color:white; z-index:10; }
@@ -18,8 +20,8 @@
 <script>
 // ===== 星表資料 =====
 const stars = [
-  {name:"天狼星", ra:101.2871554, dec-16.71611583, color:0xadd8e6},
-  {name:"參宿四", ra:,88.79293875, dec:7.407062778, color:0xffa500},
+  {name:"天狼星", ra:101.2871554, dec:-16.71611583, color:0xadd8e6},
+  {name:"參宿四", ra:88.79293875, dec:7.407062778, color:0xffa500},
   {name:"參宿七", ra:78.63458333, dec:-8.201666672, color:0x87ceeb},
   {name:"織女一", ra:279.23458335, dec:38.78361111, color:0xffffff},
   {name:"北極星", ra:37.95291667, dec:89.26416667, color:0xffff00},
@@ -41,7 +43,6 @@ document.body.appendChild(renderer.domElement);
 
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
 controls.enablePan = false;
-  
 controls.minDistance = 100;
 controls.maxDistance = 1000;
 
@@ -78,11 +79,6 @@ function updateStars(lat, time){
     const y = r * Math.sin(alt);
     const z = r * Math.cos(alt) * Math.cos(az);
     star.position.set(x,y,z);
-  });
-
-  // 標籤跟隨星星
-  labels.forEach(l=>{
-    l.mesh.position.copy(l.star.position.clone().add(new THREE.Vector3(5,5,0)));
   });
 }
 
