@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Interactive Celestial Sphere</title>
+<style>
+    body{
+        background:#000;
+        color:white;
+        font-family:sans-serif;
+        text-align:center;
+    }
+    canvas{
+        background:black;
+        border:1px solid white;
+    }
+    .controls{
+        margin-top:10px;
+    }
+</style>
+</head>
+<body>
+
+<h2>Interactive Celestial Sphere</h2>
+<canvas id="sky" width="600" height="600"></canvas>
+
+<div class="controls">
+Latitude:
+<input type="range" id="lat" min="-80" max="80" value="25" step="1">
+<span id="latVal">25</span>°
+
+<br>
+
+Time:
+<input type="range" id="time" min="0" max="24" value="0" step="0.1">
+<span id="timeVal">0</span> h
+</div>
+
+<script>
+const canvas = document.getElementById("sky");
+const ctx = canvas.getContext("2d");
+const center = 300;
+const radius = 250;
+
+//亮星資料 RA(deg), Dec(deg)
+const stars = [
+["Sirius",101.287,-16.716],
+["Betelgeuse",88.793,7.407],
+["Rigel",78.634,-8.201],
+["Vega",279.234,38.783],
+["Polaris",37.95,89.264],
+["Altair",297.695,8.868],
+["Aldebaran",68.98,16.509],
+["Antares",247.35,-26.43],
+["Spica",201.3,-11.16],
+["Deneb",310.36,45.28]
+];
+
+function deg2rad(d){return d*Math.PI/180;}
+
+function radecToAltAz(ra,dec,lat,time){
+    ra=deg2rad(ra); dec=deg2rad(dec); lat=deg2rad(lat);
+    let H = deg2rad(time*15) - ra;
+
+    let sinAlt = Math.sin(lat)*Math.sin(dec) +
+                 Math.cos(lat)*Math.cos(dec)*Math.cos(H);
+    let alt = Math.asin(sinAlt);
+
+    let cosAz = (Math.sin(dec)-Math.sin(alt)*Math.sin(lat)) /
+                (Math.cos(alt)*Math.cos(lat));
+    let az = Math.acos(cosAz);
+
+    if(Math.sin(H)>0) az = 2*Math.PI - az;
+    return [alt*180/Math.PI, az*180/Math.PI];
+}
+
+function drawSky(lat,time){
+    ctx.clearRect(0,0,600,600);
+
+    //地平線
+    ctx.beginPath();
+    ctx.arc(center,center,radius,0,Math.PI*2);
+    ctx.strokeStyle="white";
+    ctx.stroke();
+
+    stars.forEach(star=>{
+        let altaz = radecToAltAz(star[1],star[2],lat,time);
+        let alt = altaz[0];
+        let az = altaz[1];
+
+        if(alt>0){
+            let r = radius*(90-alt)/90;
+            let x = center + r*Math.sin(deg2rad(az));
+            let y = center - r*Math.cos(deg2rad(az));
+
+            ctx.beginPath();
+            ctx.arc(x,y,3,0,Math.PI*2);
+            ctx.fillStyle="white";
+            ctx.fill();
+
+            ctx.fillText(star[0],x+5,y);
+        }
+    });
+}
+
+//滑桿控制
+const latSlider=document.getElementById("lat");
+const timeSlider=document.getElementById("time");
+
+function update(){
+    document.getElementById("latVal").innerText=latSlider.value;
+    document.getElementById("timeVal").innerText=timeSlider.value;
+    drawSky(parseFloat(latSlider.value),parseFloat(timeSlider.value));
+}
+
+latSlider.oninput=update;
+timeSlider.oninput=update;
+
+update();
+</script>
+
+</body>
+</html>
