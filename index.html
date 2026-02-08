@@ -26,7 +26,7 @@
 
 <div class="controls">
 Latitude:
-<input type="range" id="lat" min="-80" max="80" value="25" step="1">
+<input type="range" id="lat" min="-90" max="90" value="25" step="1">
 <span id="latVal">25</span>°
 
 <br>
@@ -34,6 +34,8 @@ Latitude:
 Time:
 <input type="range" id="time" min="0" max="24" value="0" step="0.1">
 <span id="timeVal">0</span> h
+<br>
+Arrow control ↑↓←→ to rotate
 </div>
 
 <script>
@@ -42,21 +44,23 @@ const ctx = canvas.getContext("2d");
 const center = 300;
 const radius = 250;
 
-//亮星資料 RA(deg), Dec(deg)
+//星星資料 RA(deg), Dec(deg)
 const stars = [
-["Sirius",101.287,-16.716],
-["Betelgeuse",88.793,7.407],
-["Rigel",78.634,-8.201],
-["Vega",279.234,38.783],
-["Polaris",37.95,89.264],
-["Altair",297.695,8.868],
-["Aldebaran",68.98,16.509],
-["Antares",247.35,-26.43],
-["Spica",201.3,-11.16],
-["Deneb",310.36,45.28]
+["天狼星",101.2871554,-16.71611583,"lightblue"],
+["參宿四",88.79293875,7.407062778,"orange"],
+["參宿七",78.63458333,-8.20166667,"blue"],
+["織女一",279.2345833,38.78361111,"white"],
+["北極星",37.95291667,89.26416667,"yellow"],
+["河鼓二",297.6958292,8.868321944,"white"],
+["畢宿五",68.98016279,16.50930236,"red"],
+["心宿二",247.35,-26.43194444,"red"],
+["角宿一",201.3982471,-11.16132194,"lightblue"],
+["天津四",310.3579167,45.28027778,"white"]
 ];
 
 function deg2rad(d){return d*Math.PI/180;}
+
+let viewOffset = 0; 
 
 function radecToAltAz(ra,dec,lat,time){
     ra=deg2rad(ra); dec=deg2rad(dec); lat=deg2rad(lat);
@@ -94,8 +98,8 @@ function drawSky(lat,time){
             let y = center - r*Math.cos(deg2rad(az));
 
             ctx.beginPath();
-            ctx.arc(x,y,3,0,Math.PI*2);
-            ctx.fillStyle="white";
+            ctx.arc(x,y,4,0,Math.PI*2);
+            ctx.fillStyle=star[3];
             ctx.fill();
 
             ctx.fillText(star[0],x+5,y);
@@ -117,6 +121,13 @@ latSlider.oninput=update;
 timeSlider.oninput=update;
 
 update();
+
+window.addEventListener("keydown",(e)=>{
+    if(e.key=="ArrowLeft")viewOffset-=0.1;
+    if(e.key=="ArrowRidht")viewOffset-=0.1;
+    update();
+});
+
 </script>
 
 </body>
